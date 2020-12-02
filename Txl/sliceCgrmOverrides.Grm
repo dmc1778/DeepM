@@ -1,0 +1,143 @@
+
+% When precedence is needed in C transformations,
+% include these overrides following the C grammar
+redefine assignment_expression
+    [unary_expression_assign*] [conditional_expression]
+end redefine
+
+define unary_expression_assign
+    [unary_expression] [assignment_operator]
+end define
+
+redefine conditional_expression
+    [logical_OR_expression] [conditional_operation?]
+end redefine
+
+define logical_OR_expression
+    [logical_AND_expression] [OR_logical_AND_expression*]
+end define
+
+define OR_logical_AND_expression
+    '|| [logical_AND_expression]
+end define
+
+
+define logical_AND_expression
+    [inclusive_OR_expression] [AND_inclusive_OR_expression*]
+end define
+
+define AND_inclusive_OR_expression
+    '&& [inclusive_OR_expression]
+end define
+
+define inclusive_OR_expression
+    [exclusive_OR_expression] [OR_exclusive_OR_expression*]
+end define
+
+define OR_exclusive_OR_expression
+    '| [exclusive_OR_expression]
+end define
+
+define exclusive_OR_expression
+    [AND_expression] [exclusive_OR_AND_expression*]
+end define
+
+define exclusive_OR_AND_expression
+    '^ [AND_expression]
+end define
+
+define AND_expression
+    [equality_expression] [AND_equality_expression*]
+end define
+
+define AND_equality_expression
+    '& [equality_expression]
+end define
+
+define equality_expression
+    [relational_expression] [equality_relational_expression*]
+end define
+
+define equality_relational_expression
+    [equality_operator] [relational_expression]
+end define
+
+define equality_operator
+    '== | '!=
+end define
+
+define relational_expression
+    [shift_expression] [relational_shift_expression*]
+end define
+
+define relational_shift_expression
+    [relational_operator] [shift_expression]
+end define
+
+define relational_operator
+    '< | '> | '<= | '>=
+end define
+
+
+define shift_expression
+    [additive_expression] [shift_additive_expression*]
+end define
+
+define shift_additive_expression
+    [shift_operator] [additive_expression]
+end define
+
+define shift_operator
+    '<< | '>>
+end define
+
+define additive_expression
+    [multiplicative_expression]
+    [add_subtract_multiplicative_expression*]
+end define
+
+define add_subtract_multiplicative_expression
+    [additive_operator] [multiplicative_expression]
+end define
+
+define additive_operator
+    '+ | '-
+end define
+
+define multiplicative_expression
+    [cast_expression] [multipy_divide_cast_expression*]
+end define
+
+define multipy_divide_cast_expression
+    [multiplicative_operator] [cast_expression]
+end define
+
+define multiplicative_operator
+    '* | '/ | '%
+end define
+
+define cast_expression
+    [cast_operator*] [unary_expression]
+end define
+
+define cast_operator
+    '( [type_name] ')
+end define
+
+redefine unary_expression
+    [pre_increment_operator*] [sub_unary_expression]
+end redefine
+
+define pre_increment_operator
+    '++ | '-- | 'sizeof
+end define
+
+define sub_unary_expression
+        [postfix_expression]
+    |'sizeof '( [type_name] ')
+    | [unary_operator] [cast_expression]
+end define
+
+redefine unary_operator
+    '& | '* | '+ | '- | '~ | '!
+end redefine
