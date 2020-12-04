@@ -4,11 +4,12 @@ import pandas as pd
 from nltk.tokenize import word_tokenize
 import csv
 import string
-from gensim.models import Word2Vec, KeyedVectors
+from gensim.models import Word2Vec
+import shutil
 
-base_path = "./sliced_methods"
+base_path = ["./sliced_methods", "./mutated_methods"]
 
-out_path = "./mutated_methods"
+out_path = "./datasets"
 
 
 class ProcessMethods:
@@ -29,38 +30,75 @@ class ProcessMethods:
         return self
 
     def write_file(self, project_name, _file):
-        _path = out_path+"\\"+project_name+".csv"
-        _file.to_csv(_path, encoding='utf-8', index=False)
-        # with open(_path, 'w') as f:
-        #     writer = csv.writer(f)
-        #     for row in _file:
-        #         writer.writerow(str(row).translate(string.maketr('', ''), '[]\''))
+        _path = os.path.join(out_path)
+        if not os.path.exists(_path):
+            os.makedirs(_path)
+        _file.to_csv(_path+'/'+project_name + '.csv',
+                     encoding='utf-8', index=False)
         return self
 
     def load_file(self, file_addr):
         return open(file_addr, 'r').read().replace('\n', '')
 
+    def read_code_file(self, file_path):
+        code_lines = {}
+        with open(file_path) as fp:
+            for ln, line in enumerate(fp):
+                assert isinstance(line, str)
+                line = line.strip()
+                if '//' in line:
+                    line = line[:line.index('//')]
+                code_lines[ln + 1] = line
+            return code_lines
+
     def CustomeTokenizer(self, _dir):
         raw_txt = self.load_file(_dir)
         return word_tokenize(raw_txt)
 
+    def combine_project_files(self):
+        combined_path = './combined_projects_file'
+        sliced_methods_path = './sliced_methods'
+        mutated_methods_path = './mutated_methods'
+
+        for _, project_dir, _ in os.walk(sliced_methods_path):
+            for project_ in project_dir:
+                new_path_clean = os.path.join(combined_path, project_, 'clean')
+                new_path_buggy = os.path.join(combined_path, project_, 'buggy')
+                if not os.path.exists(new_path_buggy):
+                    os.makedirs(new_path_buggy)
+                if not os.path.exists(new_path_clean):
+                    os.makedirs(new_path_clean)
+
+                sliced_methods_f = os.path.join(sliced_methods_path, project_)
+                mutated_methods_f = os.path.join(
+                    mutated_methods_path, project_)
+                for _file in os.listdir(sliced_methods_f):
+                    shutil.copyfile(sliced_methods_f+'/'+_file,
+                                    new_path_clean+'/'+_file)
+                for _file in os.listdir(mutated_methods_f):
+                    shutil.copyfile(mutated_methods_f+'/'+_file,
+                                    new_path_buggy+'/'+_file)
+        return self
+
     def list_all_files(self):
-        for root, direname, _ in os.walk(base_path):
-            temp = []
-            for project in direname:
-                subdir = os.path.join(root, project)
+        combined_path = './combined_projects_file'
+        for root, project_dir, _ in os.walk(combined_path):
+            for project_ in project_dir:
+                temp = []
+                subdir = os.path.join(root, project_)
                 listDir = os.listdir(subdir)
-                for _method in listDir:
-                    working_dir = os.path.join(subdir, _method)
-                    for c_files in os.walk(working_dir):
-                        for _file_i_ in c_files[2]:
-                            _file_i_ = os.path.join(working_dir, _file_i_)
-                            myfile = self.load_file(_file_i_)
-                            # tokenized = self.CustomeTokenizer(_file_i_)
-                            # tokenized = str(tokenized)[1 : -1]
-                            temp.append((myfile, _label))
-                df_i = pd.DataFrame(temp, columns=('method', 'status'))
-                self.write_file(project, df_i)
+                for label_dir in listDir:
+                    cwd = os.path.join(subdir, label_dir)
+                    for _method in os.listdir(cwd):
+                        working_dir = os.path.join(cwd, _method)
+                        myfile = self.read_code_file(working_dir)
+                        if label_dir == 'buggy':
+                            label_indicator = 1
+                        else:
+                            label_indicator = 0
+                        temp.append((myfile, label_indicator))
+                        df_i = pd.DataFrame(temp, columns=('method', 'status'))
+                self.write_file(project_, df_i)
                 # self.w2v(df_i)
                 df_i = pd.DataFrame(None)
                 temp = []
@@ -68,4 +106,5 @@ class ProcessMethods:
 
 if __name__ == '__main__':
     _pm = ProcessMethods()
+    _pm.combine_project_files()
     _pm.exec()
