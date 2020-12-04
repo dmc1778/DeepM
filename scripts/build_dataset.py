@@ -6,9 +6,9 @@ import csv
 import string
 from gensim.models import Word2Vec, KeyedVectors
 
-base_path = "E:\\apply\\york\\Courses\\EECS 6444\\final project\\source\\mutated_methods"
+base_path = "./sliced_methods"
 
-out_path = "E:\\apply\\york\\Courses\\EECS 6444\\final project\\source\\"
+out_path = "./mutated_methods"
 
 
 class ProcessMethods:
@@ -45,13 +45,13 @@ class ProcessMethods:
         return word_tokenize(raw_txt)
 
     def list_all_files(self):
-        for root, direname, filenames in os.walk(base_path):
+        for root, direname, _ in os.walk(base_path):
             temp = []
             for project in direname:
                 subdir = os.path.join(root, project)
                 listDir = os.listdir(subdir)
-                for _label in listDir:
-                    working_dir = os.path.join(subdir, _label)
+                for _method in listDir:
+                    working_dir = os.path.join(subdir, _method)
                     for c_files in os.walk(working_dir):
                         for _file_i_ in c_files[2]:
                             _file_i_ = os.path.join(working_dir, _file_i_)

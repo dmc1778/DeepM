@@ -10,7 +10,9 @@ function FHMDriver
     replace [program]
         P [program]
     by
-        P [removeFree]
+        P 
+          [removeNullStmt]
+          [removeFree]
           [removeKFree]
           [replaceMallocAlloc]
           [replace_kmalloc2_W_N]
@@ -18,6 +20,13 @@ function FHMDriver
           [replaceKCallocAlloc]
 end function
 
+
+rule removeNullStmt
+    replace $ [statement]
+        AE [assignment_expression] '= 'NULL ';
+    by
+        AE ';
+end rule
 
 
 rule removeFree

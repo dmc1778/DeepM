@@ -23,14 +23,6 @@ end function
 %      D
 %end rule
 
-
-rule removeNullStmt
-    replace $ [statement]
-        AE [assignment_expression] '= 'NULL ';
-    by
-        AE ';
-end rule
-
 rule replaceCallocMalloc
     replace $ [assignment_expression]
         A[any]'calloc '( AE1 [assignment_expression], AE2 [assignment_expression] ')

@@ -1,5 +1,5 @@
 include "CL.Grm"
-include "FHM.Txl"
+include "FMA.Txl"
 
 function main
     replace [program]
@@ -19,5 +19,5 @@ function preparationTransformations
     replace [program]
         P [program]
     by
-        P [FHMRules]
+        P [FMARules]
 end function

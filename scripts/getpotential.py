@@ -4,17 +4,18 @@ import re
 import json
 import codecs
 import nltk
-from nltk.tokenize import word_tokenize
+from nltk.tokenize import word_tokenize, WhitespaceTokenizer
+import os
+from pathlib import Path
+import itertools
+import csv
 
 label_flag = 3
-project_name = "xorg"
+project_name = "coreutils"
 
-Path = "E:\\apply\\york\\Courses\\EECS 6444\\final project\\source\\all_methods\\"+project_name+"\\"
-PotentialPath = "E:\\apply\\york\\Courses\\EECS 6444\\final project\\source\\potential_methods\\" + \
-    project_name+"\\method\\"+str(label_flag)
-PotentialPathLabel = "E:\\apply\\york\\Courses\\EECS 6444\\final project\\source\\potential_methods\\" + \
-    project_name+"\\labels\\"+str(label_flag)
+base_path = "./all_methods"
 
+PotentialPath = "./potential_methods/"
 
 class CheckPotential:
     def __init__(self) -> None:
@@ -34,11 +35,14 @@ class CheckPotential:
         self.UMA = False
         self.FMA = False
         self.FHM = False
+        self.line_reg = []
 
     def reset_flag(self):
         self.UMA = False
         self.FMA = False
         self.FHM = False
+        self.line_reg = []
+        
 
     def get(self):
         return self._method
@@ -52,161 +56,144 @@ class CheckPotential:
         # self.pair = x
 
     def func_UMA(self):
-        local_memalloc_flag = False
-        local_null_flag = False
-        if "calloc (" in self._method:
-            self.calloc_counter += 1
-            local_memalloc_flag = True
-        if "kcalloc (" in self._method:
-            self.kcalloc_counter += 1
-            local_memalloc_flag = True
-        if "xcalloc (" in self._method:
-            self.xcalloc_counter += 1
-            local_memalloc_flag = True
+        if len(self._method) > 3:
+            for line in self._method:
+                if line != 1:
+                    # line = line.replace('\n', '')
+                    # line = line.replace('\r', '')
+                    if "calloc (" in self._method[line]:
+                        self.calloc_counter += 1
+                        self.line_reg.append(line)
+                    if "kcalloc (" in self._method[line]:
+                        self.kcalloc_counter += 1
+                        self.line_reg.append(line)
+                    if "xcalloc (" in self._method[line]:
+                        self.xcalloc_counter += 1
+                        self.line_reg.append(line)
 
-        #   (^[^\s]*)([$^!|==])*\s*=\s*(NULL)(.*)
-        for line in self._method:
-            regex = r'(^[^\s]*)([$^!|==])*\s*=\s*(NULL)(.*)'
-            _x = re.findall(regex, line, re.MULTILINE)
-            global_pass_counter = 0
-            line_tokenized = word_tokenize(line)
-            null_flag = line_tokenized.__contains__('NULL')
-            if null_flag:
-                for i, v in enumerate(line_tokenized):
-                    if v == 'if' or v == 'while' or v == 'for' or v == 'return':
-                        break
-                    if v != '=':
-                        global_pass_counter += 1
-                    if global_pass_counter > 1:
-                        break
-                    else:
-                        local_null_flag = True
-                        self.null_counter += 1
-        if local_memalloc_flag == True or local_null_flag == True:
-            self.UMA = True
+                    line_tokenized = WhitespaceTokenizer().tokenize(self._method[line])
+                    combs = list(itertools.combinations(line_tokenized, 2))
+                    for item in combs:
+                        if item[0] == '=' and item[1] == 'NULL':
+                            self.line_reg.append(line)
 
-    def func_FMA(self):
-        for line in self._method:
-            pattern1 = re.findall(
-                r'(malloc|xmalloc|kmalloc)\s*\(\s*(^0|-*[0-9]+[0-9]*\s*\*)\s*sizeof\s*\(.*\)\s*\)', line)
-            pattern2 = re.findall(
-                r'(malloc|xmalloc|kmalloc)\s*\(\s*sizeof\s*\(.*\)\s*\)', line)
-            pattern3 = re.findall(
-                r'(malloc|xmalloc|kmalloc*\s*) \((sizeof\s*(.*))\)', line)
-            if "calloc (" in line:
-                self.calloc_counter += 1
-                self.FMA = True
-            if "kcalloc (" in line:
-                self.kcalloc_counter += 1
-                self.FMA = True
-            if "xcalloc (" in line:
-                self.xcalloc_counter += 1
-                self.FMA = True
-            if "malloc (" in line:
-                self.malloc_counter += 1
-                self.FMA = True
-            if "kmalloc (" in line:
-                self.kmalloc_counter += 1
-                self.FMA = True
-            if "xmalloc (" in line:
-                self.xmalloc_counter += 1
-                self.FMA = True
+                    pattern1 = re.findall(
+                        r'(malloc|xmalloc|kmalloc)\s*\(\s*(^0|-*[0-9]+[0-9]*\s*\*)\s*sizeof\s*\(.*\)\s*\)', self._method[line])
+                    pattern2 = re.findall(
+                        r'(malloc|xmalloc|kmalloc)\s*\(\s*sizeof\s*\(.*\)\s*\)', self._method[line])
+                    pattern3 = re.findall(
+                        r'(malloc|xmalloc|kmalloc*\s*) \((sizeof\s*(.*))\)', self._method[line])
+                    if re.search(r'\bcalloc \(\b', self._method[line]):
+                        self.calloc_counter += 1
+                        self.FMA = True
+                        self.line_reg.append(line)
+                    if re.search(r'\bkcalloc \(\b', self._method[line]):
+                        self.kcalloc_counter += 1
+                        self.FMA = True
+                        self.line_reg.append(line)
+                    if re.search(r'\bxcalloc \(\b', self._method[line]):
+                        self.xcalloc_counter += 1
+                        self.FMA = True
+                        self.line_reg.append(line)
+                    if re.search(r'\bmalloc \(\b', self._method[line]):
+                        self.malloc_counter += 1
+                        self.FMA = True
+                        self.line_reg.append(line)
+                    if re.search(r'\bkmalloc \(\b', self._method[line]):
+                        self.kmalloc_counter += 1
+                        self.FMA = True
+                        self.line_reg.append(line)
+                    if re.search(r'\bxmalloc \(\b', self._method[line]):
+                        self.xmalloc_counter += 1
+                        self.FMA = True
+                        self.line_reg.append(line)
 
-            if len(pattern1) != 0:
-                self.FMA = True
-                self.sizeOf_counter += 1
-            if len(pattern2) != 0:
-                self.FMA = True
-                self.sizeOf_counter += 1
-            if len(pattern3) != 0:
-                self.FMA = True
-                self.sizeOf_counter += 1
+                    if len(pattern1) != 0:
+                        self.FMA = True
+                        self.sizeOf_counter += 1
+                        self.line_reg.append(line)
+                    if len(pattern2) != 0:
+                        self.FMA = True
+                        self.sizeOf_counter += 1
+                        self.line_reg.append(line)
+                    if len(pattern3) != 0:
+                        self.FMA = True
+                        self.sizeOf_counter += 1
+                        self.line_reg.append(line)
 
-    def func_FHM(self):
-        for line in self._method:
-            # group = re.findall(r'\b((free|kfree)*\s*)\((.*)\)', line)
-            if 'free (' in line:
-                self.FHM = True
-                self.free_counter += 1
-            if 'kfree (' in line:
-                self.FHM = True
-                self.free_counter += 1
-            if "calloc (" in line:
-                self.calloc_counter += 1
-                self.FHM = True
-            if "kcalloc (" in line:
-                self.kcalloc_counter += 1
-                self.FHM = True
-            if "xcalloc (" in line:
-                self.xcalloc_counter += 1
-                self.FHM = True
-            if "malloc (" in line:
-                self.malloc_counter += 1
-                self.FHM = True
-            if "kmalloc (" in line:
-                self.kmalloc_counter += 1
-                self.FHM = True
-            if "xmalloc (" in line:
-                self.xmalloc_counter += 1
-                self.FHM = True
+                    # group = re.findall(r'\b((free|kfree)*\s*)\((.*)\)', line)
+                    if 'free (' in self._method[line]:
+                        self.FHM = True
+                        self.free_counter += 1
+                        self.line_reg.append(line)
+                    if 'kfree (' in self._method[line]:
+                        self.FHM = True
+                        self.free_counter += 1
+                        self.line_reg.append(line)
 
     def apply(self):
-        if label_flag == 1:
-            self.func_UMA()
-        elif label_flag == 2:
-            self.func_FMA()
-        else:
-            self.func_FHM()
+        self.func_UMA()
 
-    def buildWrite(self, methodName):
-        if label_flag == 1:
-            c = {"UMA": self.UMA}
-            allow_write = c['UMA']
-        elif label_flag == 2:
-            c = {"FMA": self.FMA}
-            allow_write = c['FMA']
-        else:
-            c = {"FHM": self.FHM}
-            allow_write = c['FHM']
-        #c = {"FHM": self.FHM }
-        # c = {"UMA": self.UMA, "FMA": self.FMA, "FHM": self.FHM }
-        # self.pair['method'] = self._method
-        # self.pair['fault'] = c
-
-        if allow_write != False:
-            with codecs.open(PotentialPathLabel + "/%s.json" % (methodName), 'w', encoding='utf-8') as f_label:
-                json.dump(c, f_label, ensure_ascii=False, indent=4)
-            with codecs.open(PotentialPath + "/%s.c" % (methodName), 'w', encoding='utf-8') as f_method:
+    def buildWrite(self,sub_dir, methodName):
+        if len(self.line_reg) > 0:
+            _cwd_method = os.path.join(PotentialPath,sub_dir,'methods')
+            _cwd_meta = os.path.join(PotentialPath,sub_dir,'meta')
+            if not os.path.exists(_cwd_method):
+                os.makedirs(_cwd_method)
+            if not os.path.exists(_cwd_meta):
+                os.makedirs(_cwd_meta)
+            with codecs.open(_cwd_method + "/%s.c" % (methodName), 'w', encoding='utf-8') as f_method:
                 for line in self._method:
-                    f_method.writelines(line)
+                    f_method.write("%s\n" % self._method[line])
+                f_method.close()
+            with open(_cwd_meta + "/%s.csv" % (methodName), 'w') as f_meta:
+                x = list(set(self.line_reg))
+                writer = csv.writer(f_meta, delimiter=',')
+                writer.writerow(x)
 
+    def read_code_file(self, file_path):
+        code_lines = {}
+        with open(file_path) as fp:
+            for ln, line in enumerate(fp):
+                assert isinstance(line, str)
+                line = line.strip()
+                if '//' in line:
+                    line = line[:line.index('//')]
+                code_lines[ln + 1] = line
+        return code_lines
 
 def main():
     _obj = CheckPotential()
-    filelist = os.listdir(Path)
+    # filelist = os.listdir(Path)
     i = 0
-    for x in filelist:
-        if x.endswith(".c"):
-            with codecs.open(Path + x, "r", encoding="ascii") as f:
-                data_dict = f.readlines()
-                _obj.set(data_dict)
-                _obj.apply()
-                _obj.buildWrite(x)
-                _obj.reset_flag()
-            print("DYNAMIC MEMORY ALLOCATION")
-            print("malloc:", _obj.malloc_counter)
-            print("kmalloc:", _obj.kmalloc_counter)
-            print("xmalloc:", _obj.xmalloc_counter)
-            print("calloc:", _obj.calloc_counter)
-            print("kcalloc:", _obj.kcalloc_counter)
-            print("xcalloc:", _obj.xcalloc_counter)
-            print("OTHER")
-            print("NULL:", _obj.null_counter)
-            print("sizeOf:", _obj.sizeOf_counter)
-            print("free:", _obj.free_counter)
-            print("kfree:", _obj.kfree_counter)
-            i += 1
-            print(i)
+    for root, dirnames, _ in os.walk(base_path):
+        for sub_dir in dirnames:
+            cwd = os.path.join(root, sub_dir)
+            filelist = sorted(os.listdir(cwd))
+            for x in filelist:
+                if x.endswith(".c"):
+                    full_path = os.path.join(cwd, x)
+                    data_dict = _obj.read_code_file(full_path)
+                    # with codecs.open(full_path, "r", encoding="ascii") as f:
+                    #data_dict = f.readlines()
+                    _obj.set(data_dict)
+                    _obj.apply()
+                    _obj.buildWrite(sub_dir,x)
+                    _obj.reset_flag()
+                print("DYNAMIC MEMORY ALLOCATION")
+                print("malloc:", _obj.malloc_counter)
+                print("kmalloc:", _obj.kmalloc_counter)
+                print("xmalloc:", _obj.xmalloc_counter)
+                print("calloc:", _obj.calloc_counter)
+                print("kcalloc:", _obj.kcalloc_counter)
+                print("xcalloc:", _obj.xcalloc_counter)
+                print("OTHER")
+                print("NULL:", _obj.null_counter)
+                print("sizeOf:", _obj.sizeOf_counter)
+                print("free:", _obj.free_counter)
+                print("kfree:", _obj.kfree_counter)
+                i += 1
+                print(i)
 
 
 if __name__ == '__main__':

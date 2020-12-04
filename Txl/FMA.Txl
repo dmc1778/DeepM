@@ -9,7 +9,12 @@ function FMADriver
     replace [program]
         P [program]
     by
-        P [replace_realloc_W_N]
+        P 
+          [removeNullDecl]
+          [removeNullStmt]
+          [removeFree]
+          [removeKFree]
+          [replace_realloc_W_N]
           [replace_realloc2_W_N]
           [replace_malloc_W_N]
           [replace_vmalloc_W_N]
@@ -19,6 +24,39 @@ function FMADriver
           [replace_calloc_W_N]
           [replace_kcalloc_W_N]
 end function
+
+rule removeNullDecl
+    replace $ [init_declarator]
+            D [declarator]'= 'NULL
+    by
+            D	
+end rule
+
+rule removeNullStmt
+    replace $ [statement]
+        AE [assignment_expression] '= 'NULL ';
+    by
+        AE;
+end rule
+
+
+rule removeFree
+    replace [repeat declaration_or_statement]
+        Head[declaration_or_statement]
+        Tail[repeat declaration_or_statement]
+    deconstruct Head 'free '( MA [macro_arguments] ') ';
+    by
+        Tail
+end rule
+
+rule removeKFree
+    replace [repeat declaration_or_statement]
+        Head[declaration_or_statement]
+        Tail[repeat declaration_or_statement]
+    deconstruct Head 'kfree '( MA [macro_arguments] ') ';
+    by
+        Tail
+end rule
 
 rule replace_realloc_W_N
     replace $ [assignment_expression]
