@@ -96,8 +96,15 @@ class ProcessMethods:
                             label_indicator = 1
                         else:
                             label_indicator = 0
-                        temp.append((myfile, label_indicator))
-                        df_i = pd.DataFrame(temp, columns=('method', 'status'))
+                        x = []
+                        for _, key in myfile.items():
+                            x.append(key)
+                        result = ' '.join(x)
+                        temp.append([str(result), int(label_indicator)])
+                        df_i = pd.DataFrame(
+                            temp, columns=('method', 'status'))
+                        result = []
+                print(type(df_i.iloc[:, 0]))
                 self.write_file(project_, df_i)
                 # self.w2v(df_i)
                 df_i = pd.DataFrame(None)

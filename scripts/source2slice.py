@@ -1,7 +1,10 @@
-import os, sys, argparse
+import os
+import sys
+import argparse
 from graphviz import Digraph
 import csv
 import random
+
 
 def read_csv(csv_file_path):
     data = []
@@ -22,6 +25,7 @@ def read_csv(csv_file_path):
             data.append(instance)
         return data
 
+
 def read_criteria_file(file_path):
     file_path = file_path.replace('.c.c', '.c.csv')
     with open(file_path, 'r') as fp:
@@ -30,6 +34,7 @@ def read_criteria_file(file_path):
         for row in csvreader:
             rows.append(row)
     return rows
+
 
 def read_code_file(file_path):
     code_lines = {}
@@ -73,7 +78,7 @@ def create_adjacency_list(line_numbers, node_id_to_line_numbers, edges, data_dep
         adjacency_list[ln] = [set(), set()]
     for edge in edges:
         edge_type = edge['type'].strip()
-        if True :#edge_type in ['IS_AST_PARENT', 'FLOWS_TO']:
+        if True:  # edge_type in ['IS_AST_PARENT', 'FLOWS_TO']:
             start_node_id = edge['start'].strip()
             end_node_id = edge['end'].strip()
             if start_node_id not in node_id_to_line_numbers.keys() or end_node_id not in node_id_to_line_numbers.keys():
@@ -83,7 +88,7 @@ def create_adjacency_list(line_numbers, node_id_to_line_numbers, edges, data_dep
             # if not data_dependency_only:
             #     if edge_type == 'FLOWS_TO': #Control Flow edges
             #         adjacency_list[start_ln][0].add(end_ln)
-            if edge_type == 'REACHES': # Data Flow edges
+            if edge_type == 'REACHES':  # Data Flow edges
                 adjacency_list[start_ln][1].add(end_ln)
     return adjacency_list
 
@@ -150,12 +155,14 @@ if __name__ == '__main__':
     for root, dirname, _ in os.walk(cpg_of_methods_path):
         for sub_dir in dirname:
             criteria_cwd = os.path.join(codes_paths, sub_dir)
-            codes_cwd = os.path.join(codes_paths, sub_dir) 
+            codes_cwd = os.path.join(codes_paths, sub_dir)
             cwd = os.path.join(root, sub_dir)
             for child_root, child_dir, _ in os.walk(cwd):
                 for _methods in child_dir:
-                    path_to_criteria_file = os.path.join(criteria_cwd,'meta',_methods)
-                    path_to_code_file = os.path.join(codes_cwd,'methods',_methods)
+                    path_to_criteria_file = os.path.join(
+                        criteria_cwd, 'meta', _methods)
+                    path_to_code_file = os.path.join(
+                        codes_cwd, 'methods', _methods)
                     _cwd_dir = os.path.join(child_root, _methods)
                     cpg_nodes_edges = os.listdir(_cwd_dir)
 
@@ -168,35 +175,43 @@ if __name__ == '__main__':
                     f_size = os.path.getsize(path_to_code_file)
                     if f_size < 900:
                         code = read_code_file(path_to_code_file)
-                        slicing_criteria = read_criteria_file(path_to_criteria_file)
-        
-                        node_indices, node_ids, line_numbers, node_id_to_ln = extract_nodes_with_location_info(nodes)
-                        adjacency_list = create_adjacency_list(line_numbers, node_id_to_ln, edges)
-                        combined_graph = combine_control_and_data_adjacents(adjacency_list)
+                        slicing_criteria = read_criteria_file(
+                            path_to_criteria_file)
 
-                        forward_output_path = os.path.join('./sliced_methods', sub_dir)
+                        node_indices, node_ids, line_numbers, node_id_to_ln = extract_nodes_with_location_info(
+                            nodes)
+                        adjacency_list = create_adjacency_list(
+                            line_numbers, node_id_to_ln, edges)
+                        combined_graph = combine_control_and_data_adjacents(
+                            adjacency_list)
+
+                        forward_output_path = os.path.join(
+                            './sliced_methods', sub_dir)
                         if not os.path.exists(forward_output_path):
                             os.makedirs(forward_output_path)
                         random_ = []
                         if any(combined_graph) == True:
-                            print(_methods) 
-                            for i,v in enumerate(slicing_criteria[0]):
+                            print(_methods)
+                            for i, v in enumerate(slicing_criteria[0]):
                                 if int(v) != 1:
-                                    forward_sliced_lines = create_backward_slice(combined_graph, int(v))
+                                    forward_sliced_lines = create_backward_slice(
+                                        combined_graph, int(v))
                                     if len(forward_sliced_lines) < 3:
-                                        fp = open(forward_output_path + '/'+str(i)+_methods  , 'w')
+                                        fp = open(forward_output_path +
+                                                  '/'+str(i)+_methods, 'w')
                                         for line in code:
                                             fp.write(code[line] + '\n')
                                         fp.close
                                     else:
-                                        fp = open(forward_output_path + '/'+str(i)+_methods  , 'w')
+                                        fp = open(forward_output_path +
+                                                  '/'+str(i)+_methods, 'w')
                                         for ln in forward_sliced_lines:
                                             fp.write(code[ln] + '\n')
                                         fp.close()
 
                                     # forward_sliced_lines.insert(0, 1)
                                     # forward_sliced_lines.append(len(code))
-                                    #if len(forward_sliced_lines) > 2:
+                                    # if len(forward_sliced_lines) > 2:
                                     # if len(forward_sliced_lines) > 20:
                                     #     out_ = random.sample(forward_sliced_lines, 20)
                                     #     if int(v) not in out_:
@@ -205,9 +220,7 @@ if __name__ == '__main__':
                                     #     for ln in out_:
                                     #         fp.write(code[ln] + '\n')
                                     #     fp.close()
-                              
-                            
-                        
+
                         # print('============== Actual Code ====================')
                         # for ln in sorted(set(line_numbers)):
                         #     print(ln, '\t->', code[ln])
