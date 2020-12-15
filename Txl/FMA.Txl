@@ -14,6 +14,10 @@ function FMADriver
           [removeNullStmt]
           [removeFree]
           [removeKFree]
+          [removePFree]
+          [removeReFree]
+          [removeFreeBuffer]
+          [removeVfree]
           [replace_realloc_W_N]
           [replace_realloc2_W_N]
           [replace_malloc_W_N]
@@ -58,6 +62,42 @@ rule removeKFree
         Tail
 end rule
 
+rule removePFree
+    replace [repeat declaration_or_statement]
+        Head[declaration_or_statement]
+        Tail[repeat declaration_or_statement]
+    deconstruct Head 'pfree '( MA [macro_arguments] ') ';
+    by
+        Tail
+end rule
+
+rule removeReFree
+    replace [repeat declaration_or_statement]
+        Head[declaration_or_statement]
+        Tail[repeat declaration_or_statement]
+    deconstruct Head 're_free '( MA [macro_arguments] ') ';
+    by
+        Tail
+end rule
+
+rule removeFreeBuffer
+    replace [repeat declaration_or_statement]
+        Head[declaration_or_statement]
+        Tail[repeat declaration_or_statement]
+    deconstruct Head 'free_buffer '( MA [macro_arguments] ') ';
+    by
+        Tail
+end rule
+
+rule removeVfree
+    replace [repeat declaration_or_statement]
+        Head[declaration_or_statement]
+        Tail[repeat declaration_or_statement]
+    deconstruct Head 'vfree '( MA [macro_arguments] ') ';
+    by
+        Tail
+end rule
+
 rule replace_realloc_W_N
     replace $ [assignment_expression]
         A[any]'realloc '( AE1 [argument_expression], AE2 [argument_expression] ')
@@ -74,21 +114,21 @@ end rule
 
 rule replace_malloc_W_N
     replace $ [assignment_expression]
-        A[any]'malloc '( AE[list argument_expression] ')
+        A[any]'malloc '( AE [list argument_expression] ')
     by
         'NULL
 end rule
 
 rule replace_vmalloc_W_N
     replace $ [assignment_expression]
-        A[any]'vmalloc '( AE[list argument_expression] ')
+        A[any]'vmalloc '( AE [list argument_expression] ')
     by
         'NULL
 end rule
 
 rule replace_kmalloc_W_N
     replace $ [assignment_expression]
-        A[any]'kmalloc '( AE[list argument_expression] ')
+        A[any]'kmalloc '( AE [list argument_expression] ')
     by
         'NULL
 end rule
@@ -102,7 +142,7 @@ end rule
 
 rule replace_xmalloc_W_N
     replace $ [assignment_expression]
-        A[any]'xmalloc '( AE[list argument_expression] ')
+        A[any]'xmalloc '( AE [list argument_expression] ')
     by
         'NULL
 end rule
@@ -123,3 +163,4 @@ rule replace_kcalloc_W_N
 end rule
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+

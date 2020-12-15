@@ -13,9 +13,10 @@ import csv
 label_flag = 3
 project_name = "coreutils"
 
-base_path = "./all_methods"
+base_path = "./all_new"
 
 PotentialPath = "./potential_methods/"
+
 
 class CheckPotential:
     def __init__(self) -> None:
@@ -42,7 +43,6 @@ class CheckPotential:
         self.FMA = False
         self.FHM = False
         self.line_reg = []
-        
 
     def get(self):
         return self._method
@@ -71,7 +71,8 @@ class CheckPotential:
                         self.xcalloc_counter += 1
                         self.line_reg.append(line)
 
-                    line_tokenized = WhitespaceTokenizer().tokenize(self._method[line])
+                    line_tokenized = WhitespaceTokenizer().tokenize(
+                        self._method[line])
                     combs = list(itertools.combinations(line_tokenized, 2))
                     for item in combs:
                         if item[0] == '=' and item[1] == 'NULL':
@@ -134,10 +135,12 @@ class CheckPotential:
     def apply(self):
         self.func_UMA()
 
-    def buildWrite(self,sub_dir, methodName):
+    def buildWrite(self, sub_dir, sub_sub_dir, methodName):
         if len(self.line_reg) > 0:
-            _cwd_method = os.path.join(PotentialPath,sub_dir,'methods')
-            _cwd_meta = os.path.join(PotentialPath,sub_dir,'meta')
+            _cwd_method = os.path.join(
+                PotentialPath, sub_dir, sub_sub_dir, 'methods')
+            _cwd_meta = os.path.join(
+                PotentialPath, sub_dir, sub_sub_dir, 'meta')
             if not os.path.exists(_cwd_method):
                 os.makedirs(_cwd_method)
             if not os.path.exists(_cwd_meta):
@@ -162,6 +165,7 @@ class CheckPotential:
                 code_lines[ln + 1] = line
         return code_lines
 
+
 def main():
     _obj = CheckPotential()
     # filelist = os.listdir(Path)
@@ -170,30 +174,34 @@ def main():
         for sub_dir in dirnames:
             cwd = os.path.join(root, sub_dir)
             filelist = sorted(os.listdir(cwd))
-            for x in filelist:
-                if x.endswith(".c"):
-                    full_path = os.path.join(cwd, x)
-                    data_dict = _obj.read_code_file(full_path)
-                    # with codecs.open(full_path, "r", encoding="ascii") as f:
-                    #data_dict = f.readlines()
-                    _obj.set(data_dict)
-                    _obj.apply()
-                    _obj.buildWrite(sub_dir,x)
-                    _obj.reset_flag()
-                print("DYNAMIC MEMORY ALLOCATION")
-                print("malloc:", _obj.malloc_counter)
-                print("kmalloc:", _obj.kmalloc_counter)
-                print("xmalloc:", _obj.xmalloc_counter)
-                print("calloc:", _obj.calloc_counter)
-                print("kcalloc:", _obj.kcalloc_counter)
-                print("xcalloc:", _obj.xcalloc_counter)
-                print("OTHER")
-                print("NULL:", _obj.null_counter)
-                print("sizeOf:", _obj.sizeOf_counter)
-                print("free:", _obj.free_counter)
-                print("kfree:", _obj.kfree_counter)
-                i += 1
-                print(i)
+            for item in filelist:
+                sub_cwd = os.path.join(cwd, item)
+                if os.path.isdir(sub_cwd):
+                    sub_item = sorted(os.listdir(sub_cwd))
+                    for x in sub_item:
+                        if x.endswith(".c"):
+                            full_path = os.path.join(sub_cwd, x)
+                            data_dict = _obj.read_code_file(full_path)
+                            # with codecs.open(full_path, "r", encoding="ascii") as f:
+                            #data_dict = f.readlines()
+                            _obj.set(data_dict)
+                            _obj.apply()
+                            _obj.buildWrite(sub_dir, item, x)
+                            _obj.reset_flag()
+                        print("DYNAMIC MEMORY ALLOCATION")
+                        print("malloc:", _obj.malloc_counter)
+                        print("kmalloc:", _obj.kmalloc_counter)
+                        print("xmalloc:", _obj.xmalloc_counter)
+                        print("calloc:", _obj.calloc_counter)
+                        print("kcalloc:", _obj.kcalloc_counter)
+                        print("xcalloc:", _obj.xcalloc_counter)
+                        print("OTHER")
+                        print("NULL:", _obj.null_counter)
+                        print("sizeOf:", _obj.sizeOf_counter)
+                        print("free:", _obj.free_counter)
+                        print("kfree:", _obj.kfree_counter)
+                        i += 1
+                        print(i)
 
 
 if __name__ == '__main__':

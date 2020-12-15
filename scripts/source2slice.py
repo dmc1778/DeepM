@@ -154,82 +154,84 @@ if __name__ == '__main__':
     codes_criteria_path = './potential_methods'
     for root, dirname, _ in os.walk(cpg_of_methods_path):
         for sub_dir in dirname:
-            criteria_cwd = os.path.join(codes_paths, sub_dir)
-            codes_cwd = os.path.join(codes_paths, sub_dir)
-            cwd = os.path.join(root, sub_dir)
-            for child_root, child_dir, _ in os.walk(cwd):
-                for _methods in child_dir:
-                    path_to_criteria_file = os.path.join(
-                        criteria_cwd, 'meta', _methods)
-                    path_to_code_file = os.path.join(
-                        codes_cwd, 'methods', _methods)
-                    _cwd_dir = os.path.join(child_root, _methods)
-                    cpg_nodes_edges = os.listdir(_cwd_dir)
+            _cwd = os.path.join(codes_paths, sub_dir)
+            for _, versions, _ in os.walk(_cwd):
+                for _ver in versions:
+                    path_to_potential = os.path.join(_cwd, _ver)
+                    path_to_cpg = os.path.join(root, sub_dir, _ver)
+                    for _, list_of_files, node_edge in os.walk(path_to_cpg):
+                        for _file in list_of_files:
+                            node_i = os.path.join(
+                                path_to_cpg, _file, node_edge[1])
+                            edge_i = os.path.join(
+                                path_to_cpg, _file, node_edge[0])
 
-                    edges_path = os.path.join(_cwd_dir, cpg_nodes_edges[0])
-                    nodes_path = os.path.join(_cwd_dir, cpg_nodes_edges[1])
+                            edges = read_csv(edge_i)
+                            nodes = read_csv(node_i)
 
-                    edges = read_csv(edges_path)
-                    nodes = read_csv(nodes_path)
+                            path_to_code_file = os.path.join(
+                                path_to_potential, 'methods', _file)
+                            path_to_criteria_file = os.path.join(
+                                path_to_potential, 'meta', _file)
 
-                    f_size = os.path.getsize(path_to_code_file)
-                    if f_size < 900:
-                        code = read_code_file(path_to_code_file)
-                        slicing_criteria = read_criteria_file(
-                            path_to_criteria_file)
+                            f_size = os.path.getsize(path_to_code_file)
+                            if f_size < 900:
+                                code = read_code_file(path_to_code_file)
+                                slicing_criteria = read_criteria_file(
+                                    path_to_criteria_file)
 
-                        node_indices, node_ids, line_numbers, node_id_to_ln = extract_nodes_with_location_info(
-                            nodes)
-                        adjacency_list = create_adjacency_list(
-                            line_numbers, node_id_to_ln, edges)
-                        combined_graph = combine_control_and_data_adjacents(
-                            adjacency_list)
+                                node_indices, node_ids, line_numbers, node_id_to_ln = extract_nodes_with_location_info(
+                                    nodes)
+                                adjacency_list = create_adjacency_list(
+                                    line_numbers, node_id_to_ln, edges)
+                                combined_graph = combine_control_and_data_adjacents(
+                                    adjacency_list)
 
-                        forward_output_path = os.path.join(
-                            './sliced_methods', sub_dir)
-                        if not os.path.exists(forward_output_path):
-                            os.makedirs(forward_output_path)
-                        random_ = []
-                        if any(combined_graph) == True:
-                            print(_methods)
-                            for i, v in enumerate(slicing_criteria[0]):
-                                if int(v) != 1:
-                                    forward_sliced_lines = create_backward_slice(
-                                        combined_graph, int(v))
-                                    if len(forward_sliced_lines) < 3:
-                                        fp = open(forward_output_path +
-                                                  '/'+str(i)+_methods, 'w')
-                                        for line in code:
-                                            fp.write(code[line] + '\n')
-                                        fp.close
-                                    else:
-                                        fp = open(forward_output_path +
-                                                  '/'+str(i)+_methods, 'w')
-                                        for ln in forward_sliced_lines:
-                                            fp.write(code[ln] + '\n')
-                                        fp.close()
+                                forward_output_path = os.path.join(
+                                    './sliced_methods', sub_dir, _ver)
+                                if not os.path.exists(forward_output_path):
+                                    os.makedirs(forward_output_path)
+                                random_ = []
+                                if any(combined_graph) == True:
+                                    print(_file)
+                                    for i, v in enumerate(slicing_criteria[0]):
+                                        if int(v) != 1:
+                                            forward_sliced_lines = create_backward_slice(
+                                                combined_graph, int(v))
+                                            if len(forward_sliced_lines) < 3:
+                                                fp = open(forward_output_path +
+                                                          '/'+str(i)+_file, 'w')
+                                                for line in code:
+                                                    fp.write(code[line] + '\n')
+                                                fp.close
+                                            else:
+                                                fp = open(forward_output_path +
+                                                          '/'+str(i)+_file, 'w')
+                                                for ln in forward_sliced_lines:
+                                                    fp.write(code[ln] + '\n')
+                                                fp.close()
 
-                                    # forward_sliced_lines.insert(0, 1)
-                                    # forward_sliced_lines.append(len(code))
-                                    # if len(forward_sliced_lines) > 2:
-                                    # if len(forward_sliced_lines) > 20:
-                                    #     out_ = random.sample(forward_sliced_lines, 20)
-                                    #     if int(v) not in out_:
-                                    #         out_.insert(0, int(v))
-                                    #     fp = open(forward_output_path + '/'+str(i)+_methods  , 'w')
-                                    #     for ln in out_:
-                                    #         fp.write(code[ln] + '\n')
-                                    #     fp.close()
+                                            # forward_sliced_lines.insert(0, 1)
+                                            # forward_sliced_lines.append(len(code))
+                                            # if len(forward_sliced_lines) > 2:
+                                            # if len(forward_sliced_lines) > 20:
+                                            #     out_ = random.sample(forward_sliced_lines, 20)
+                                            #     if int(v) not in out_:
+                                            #         out_.insert(0, int(v))
+                                            #     fp = open(forward_output_path + '/'+str(i)+_methods  , 'w')
+                                            #     for ln in out_:
+                                            #         fp.write(code[ln] + '\n')
+                                            #     fp.close()
 
-                        # print('============== Actual Code ====================')
-                        # for ln in sorted(set(line_numbers)):
-                        #     print(ln, '\t->', code[ln])
-                        # print('===============================================')
-                        # print('\n\nStarting slice for line %', int(v))
-                        # print('-----------------------------------------------')
-                        # print(code[int(v)])
-                        # print('-----------------------------------------------')
-                        # print('============== Forward Slice ==================')
-                        # for ln in forward_sliced_lines:
-                        #     print(ln, '\t->', code[ln])
-                        # print('===============================================')
+                                # print('============== Actual Code ====================')
+                                # for ln in sorted(set(line_numbers)):
+                                #     print(ln, '\t->', code[ln])
+                                # print('===============================================')
+                                # print('\n\nStarting slice for line %', int(v))
+                                # print('-----------------------------------------------')
+                                # print(code[int(v)])
+                                # print('-----------------------------------------------')
+                                # print('============== Forward Slice ==================')
+                                # for ln in forward_sliced_lines:
+                                #     print(ln, '\t->', code[ln])
+                                # print('===============================================')
