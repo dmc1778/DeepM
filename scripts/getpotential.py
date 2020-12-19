@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import itertools
 import csv
+from sklearn import metrics
 
 label_flag = 3
 project_name = "coreutils"

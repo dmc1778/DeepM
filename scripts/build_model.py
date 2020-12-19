@@ -1,256 +1,291 @@
-from transformers import BertTokenizer
+
+import csv
 import pandas as pd
-from keras.preprocessing.sequence import pad_sequences
-from sklearn.model_selection import train_test_split
-from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler
-from transformers import BertForSequenceClassification, AdamW, BertConfig
-from transformers import BertModel
-from transformers import get_linear_schedule_with_warmup
-import torch
-import tensorflow as tf
+from keras.callbacks import ModelCheckpoint, TensorBoard
+from keras.layers import Input, Dense
+from tensorflow.keras import regularizers
+from keras.models import Model
+from keras.datasets import mnist
+from sklearn.model_selection import train_test_split, StratifiedKFold
 import numpy as np
-import time
-import datetime
+from keras.preprocessing.text import Tokenizer
+import matplotlib.pyplot as plt
+
+import collections
+import glob
+import os
+import pandas as pd
+from itertools import combinations
 import random
 
 
-tokenizer = BertTokenizer.from_pretrained(
-    'bert-base-uncased', do_lower_case=False)
+# getting list of
+all_path = []
+for root, dir, _file in os.walk('./datasets'):
+    for project in dir:
+        current_project = os.path.join(
+            './datasets', project)
+        for ds in os.listdir(current_project):
+            current_sub_ver = os.path.join(current_project, ds)
+            all_path.append(current_sub_ver)
+
+comb_path = combinations(all_path, 2)
+comb_path = list(comb_path)
+print(len(comb_path))
+comb_path = random.sample(comb_path, 2)
+
+pair = [
+    ['./datasets/linux/linux-5.8.csv',
+        './datasets/coreutils/coreutils-8.31.csv'],
+    ['./datasets/linux/linux-5.9.csv',
+        './datasets/coreutils/coreutils-8.33.csv'],
+    ['./datasets/linux/linux-5.10.csv',
+        './datasets/coreutils/coreutils-8.31.csv'],
+    ['./datasets/linux/linux-5.8.csv',
+        './datasets/findutils/findutils-4.1.20.csv'],
+    ['./datasets/linux/linux-5.9.csv',
+        './datasets/findutils/findutils-4.2.18.csv'],
+    ['./datasets/linux/linux-5.10.csv',
+        './datasets/findutils/findutils-4.7.0.csv'],
+    ['./datasets/linux/linux-5.8.csv',
+        './datasets/make/make-4.2.csv'],
+    ['./datasets/linux/linux-5.9.csv',
+        './datasets/make/make-4.2.93.csv'],
+    ['./datasets/linux/linux-5.10.csv',
+        './datasets/make/make-4.3.csv'],
+    ['./datasets/xorg/xorg-1.20.9.csv',
+        './datasets/coreutils/coreutils-8.31.csv'],
+    ['./datasets/postgres/postgres-11.10.csv',
+        './datasets/findutils/findutils-4.12.0.csv'],
+    ['./datasets/xorg/xorg-1.20.10.csv',
+        './datasets/make/make-4.2.csv'],
+    ['./datasets/postgres/postgres-11.10.csv',
+        './datasets/make/make-4.3.csv'],
+    ['./datasets/xen/xen-4.13.2.csv',
+        './datasets/make/make-4.2.csv'],
+    ['./datasets/xen/xen-4.13.2.csv',
+        './datasets/make/make-4.3.csv'],
+    ['./datasets/xen/xen-4.14.0.csv',
+        './datasets/make/make-4.2.csv'],
+    ['./datasets/xen/xen-4.13.2.csv',
+        './datasets/coreutils/coreutils-8.31.csv'],
+    ['./datasets/xen/xen-4.13.2.csv',
+        './datasets/make/make-4.2.csv'],
+    ['./datasets/xen/xen-4.13.2.csv',
+        './datasets/findutils/findutils-4.2.18.csv'],
+    ['./datasets/xorg/xorg-1.19.7.csv',
+        './datasets/coreutils/coreutils-8.31.csv'],
+    ['./datasets/xorg/xorg-1.20.10.csv',
+        './datasets/coreutils/coreutils-8.33.csv'],
+    ['./datasets/xorg/xorg-1.19.7.csv', './datasets/coreutils/coreutils-8.31.csv']]
+
+
+CPDP_path = './results_CNN/CPDP/cpdp.csv'
+plot_path = './results_CNN/train_validation_plots/'
+embedding_dim_plots = './results_CNN/embedding_dim_plots/'
+
+
+def write_csv(data_obj):
+    with open(CPDP_path, 'w', newline='') as csv_file:
+        wr = csv.writer(csv_file)
+        for val in data_obj:
+            wr.writerow(val)
+        csv_file.close()
+
+
+header = ['Tr', 'Ts', 'Precision', 'Recall', 'F1', 'AUC']
+
+temp_result = [header]
+
+for index, pair in enumerate(comb_path):
+    name1 = os.path.basename(pair[0])
+    name2 = os.path.basename(pair[1])
+
+    print(name1, name2)
+
+    train_df = pd.read_csv(pair[0])
+    test_df = pd.read_csv(pair[1])
+
+    global_data = pd.concat([train_df, test_df], ignore_index=True)
+    global_data_train, global_data_test, global_y, global_x = train_test_split(
+        global_data.iloc[:, 0], global_data.iloc[:, 1], test_size=1, random_state=1000)
+
+    tokenizer = Tokenizer(num_words=5000)
+    tokenizer.fit_on_texts(global_data_train)
+
+    # Adding 1 because of reserved 0 index
+    vocab_size = len(tokenizer.word_index) + 1
+
+    _methods = train_df['method']
+    _status = train_df['status']
+
+    sentences_train, sentences_test, y_train, y_test = train_test_split(
+        _methods, _status, test_size=0.45, random_state=1000)
+
+    plt.style.use('ggplot')
+
+    def plot_history(history, setting_):
+        acc = history.history['accuracy']
+        val_acc = history.history['val_accuracy']
+        loss = history.history['loss']
+        val_loss = history.history['val_loss']
+        x = range(1, len(acc) + 1)
+
+        plt.figure(figsize=(12, 5))
+        plt.subplot(1, 2, 1)
+        plt.plot(x, acc, 'b', label='Training acc')
+        plt.plot(x, val_acc, 'r', label='Validation acc')
+        plt.title('Training and validation accuracy')
+        plt.legend()
+        # plt.savefig(plot_path + 'accuract' +setting_+'.png')
+        plt.subplot(1, 2, 2)
+        plt.plot(x, loss, 'b', label='Training loss')
+        plt.plot(x, val_loss, 'r', label='Validation loss')
+        plt.title('Training and validation loss')
+        plt.legend()
+        plt.savefig(plot_path + 'loss' + setting_+'.png')
+
+    def plot_embedding_dim(f1, auc, ds_name):
+        x = range(1, len(f1) + 1)
+        plt.figure(figsize=(12, 5))
+        plt.subplot(1, 2, 1)
+        plt.plot(x, f1, 'b', label='F1 Score')
+        plt.plot(x, auc, 'r', label='AUC')
+        plt.title('Embedding dimension vs classification performance')
+        plt.legend()
+        plt.savefig(embedding_dim_plots+ds_name+'.png')
+
+        # tokenizer = Tokenizer(num_words=5000)
+        # tokenizer.fit_on_texts(sentences_train)
+
+    X_train = tokenizer.texts_to_sequences(sentences_train)
+    X_test = tokenizer.texts_to_sequences(sentences_test)
+
+    # Adding 1 because of reserved 0 index
+    vocab_size = len(tokenizer.word_index) + 1
+
+    from keras.preprocessing.sequence import pad_sequences
+
+    maxlen = 100
+
+    X_train = pad_sequences(X_train, padding='post', maxlen=maxlen)
+    X_test = pad_sequences(X_test, padding='post', maxlen=maxlen)
+
+    # tokenizer = Tokenizer(num_words=5000)
+    # tokenizer.fit_on_texts(test_df.iloc[:, 0])
+
+    test_data = tokenizer.texts_to_sequences(test_df.iloc[:, 0])
+
+    # Adding 1 because of reserved 0 index
+    vocab_size_t = len(tokenizer.word_index) + 1
+
+    size_t = []
+    for el in test_data:
+        size_t.append(len(el))
+
+    maxlen = 100
+    X = pad_sequences(test_data, padding='post', maxlen=maxlen)
+
+    from sklearn.metrics import classification_report
+    from keras import backend as K
+    from keras import optimizers
+    from keras.models import Sequential
+    from keras import layers
+
+    def recall_m(y_true, y_pred):
+        threshold_value = 0.5
+        # Adaptation of the "round()" used before to get the predictions. Clipping to make sure that the predicted raw values are between 0 and 1.
+        y_pred = K.cast(K.greater(K.clip(y_pred, 0, 1),
+                                  threshold_value), K.floatx())
+        # Compute the number of true positives. Rounding in prevention to make sure we have an integer.
+        true_positives = K.round(K.sum(K.clip(y_true * y_pred, 0, 1)))
+        # Compute the number of positive targets.
+        possible_positives = K.sum(K.clip(y_true, 0, 1))
+        recall_ratio = true_positives / (possible_positives + K.epsilon())
+        return recall_ratio
+
+    def precision_m(y_true, y_pred):
+        threshold_value = 0.5
+        # Adaptation of the "round()" used before to get the predictions. Clipping to make sure that the predicted raw values are between 0 and 1.
+        y_pred = K.cast(K.greater(K.clip(y_pred, 0, 1),
+                                  threshold_value), K.floatx())
+        # Compute the number of true positives. Rounding in prevention to make sure we have an integer.
+        true_positives = K.round(K.sum(K.clip(y_true * y_pred, 0, 1)))
+        # count the predicted positives
+        predicted_positives = K.sum(y_pred)
+        # Get the precision ratio
+        precision_ratio = true_positives / (predicted_positives + K.epsilon())
+        return precision_ratio
+
+    def f1_m(y_true, y_pred):
+        precision = precision_m(y_true, y_pred)
+        recall = recall_m(y_true, y_pred)
+        return 2*((precision*recall)/(precision+recall+K.epsilon()))
+
+    f1_store = []
+    auc_store = []
+    units = [2, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+    for embedding_dim in range(len(units)):
+        model = Sequential()
+        model.add(layers.Embedding(vocab_size, 30, input_length=maxlen))
+        model.add(layers.Conv1D(32, 5, activation='relu'))
+        model.add(layers.GlobalMaxPooling1D())
+        #model.add(layers.Dense(20, activation='relu'))
+        model.add(layers.Dense(units[embedding_dim], activation='relu'))
+        model.add(layers.Dense(1, activation='sigmoid'))
+        sgd = optimizers.Adagrad(lr=0.01, epsilon=1e-08, decay=0.0)
+        model.compile(optimizer=sgd,
+                      loss='binary_crossentropy',
+                      metrics=['accuracy', f1_m, precision_m, recall_m])
+
+        model.summary()
+
+        history = model.fit(X_train, y_train,
+                            epochs=60,
+                            verbose=False,
+                            validation_data=(X_test, y_test),
+                            batch_size=64)
+
+        loss, accuracy, f1_score, precision, recall = model.evaluate(
+            X_train, y_train, verbose=False)
+        print("Training Accuracy: {:.4f}".format(accuracy))
+        loss, accuracy, f1_score, precision, recall = model.evaluate(
+            X_test, y_test, verbose=False)
+        print("Testing Accuracy:  {:.4f}".format(accuracy))
+        plot_history(history, name1+'-->'+name2+str(units[embedding_dim]))
+
+        loss, accuracy, f1_score, precision, recall = model.evaluate(
+            X, test_df.iloc[:, 1], verbose=True, batch_size=32)
+        print("testing Accuracy: {:.4f}".format(accuracy))
+        print("testing F1 Score: {:.4f}".format(f1_score))
+        print("testing Precision: {:.4f}".format(precision))
+        print("testing Recall: {:.4f}".format(recall))
+
+        predictions = model.predict(X, batch_size=32, verbose=True)
+
+        threshold_fixed = 0.5
+
+        pred_y = [1 if e >= threshold_fixed else 0 for e in predictions]
+        report = classification_report(
+            test_df.iloc[:, 1], pred_y, output_dict=True)
+        print(round(report['1']['precision'], 2))
+        print(round(report['1']['recall'], 2))
+        print(round(report['1']['f1-score'], 2))
+
+        from sklearn import metrics
+
+        fpr, tpr, thresholds = metrics.roc_curve(
+            test_df.iloc[:, 1], pred_y, pos_label=1)
+        metrics.auc(fpr, tpr)
+
+        temp_result.append([name1, name2, round(report['1']['precision'], 2), round(
+            report['1']['recall'], 2), round(report['1']['f1-score'], 2), metrics.auc(fpr, tpr)])
+
+        write_csv(temp_result)
+
+        f1_store.append(round(report['1']['f1-score'], 2))
+        auc_store.append(metrics.auc(fpr, tpr))
+
+    plot_embedding_dim(f1_store, auc_store, name1+'-->'+name2)
 
 
-device = torch.device("cpu")
-
-def format_time(elapsed):
-    '''
-    Takes a time in seconds and returns a string hh:mm:ss
-    '''
-    # Round to the nearest second.
-    elapsed_rounded = int(round((elapsed)))
-    
-    # Format as hh:mm:ss
-    return str(datetime.timedelta(seconds=elapsed_rounded))
-
-def flat_accuracy(preds, labels):
-    pred_flat = np.argmax(preds, axis=1).flatten()
-    labels_flat = labels.flatten()
-    return np.sum(pred_flat == labels_flat) / len(labels_flat)
-
-def data_final_prep(input_ids, labels, attention_masks):
-    train_inputs, validation_inputs, train_labels, validation_labels = train_test_split(
-        input_ids, labels, random_state=2018, test_size=0.1)
-
-    train_masks, validation_masks, _, _ = train_test_split(
-        attention_masks, labels, random_state=2018, test_size=0.1)
-
-    return train_inputs, validation_inputs, train_labels, validation_labels,  train_masks, validation_masks
-
-
-def make_attention(input_ids):
-    attention_masks = []
-
-    for _method in input_ids:
-        att_mask = [int(token_id > 0) for token_id in _method]
-        attention_masks.append(att_mask)
-    return attention_masks
-
-
-def pad_seqs(input_ids):
-    MAX_LEN = 128
-
-    input_ids = pad_sequences(
-        input_ids, maxlen=MAX_LEN, dtype="long", value=0, truncating="post", padding="post")
-    return input_ids
-
-
-def tokenize_all_methods(data):
-    input_ids = []
-    lengths = []
-
-    for _method in data:
-        if ((len(input_ids) % 20000) == 0):
-            print('Read {:,} methods'.format(len(input_ids)))
-
-        encoded_method = tokenizer.encode(
-            _method,
-            add_special_tokens=False,
-            max_length=128
-
-        )
-
-        input_ids.append(encoded_method)
-        lengths.append(len(encoded_method))
-    print('Done')
-    print('{:>10,} methods'.format(len(input_ids)))
-    return input_ids
-
-
-def read_data(_path):
-    df = pd.read_csv(_path)
-    return df
-
-
-def main():
-    _path = "E:\\apply\\york\\Courses\\EECS 6444\\final project\\source\\coreutils.csv"
-    data = read_data(_path)
-    _methods = data.iloc[:, 0]
-    labels = data.iloc[:, 1]
-
-    input_ids = tokenize_all_methods(_methods)
-    input_ids = pad_seqs(input_ids)
-    attention_masks = make_attention(input_ids)
-    train_inputs, validation_inputs, train_labels, validation_labels,  train_masks, validation_masks = data_final_prep(
-        input_ids, labels, attention_masks)
-    
-    train_inputs = torch.tensor(train_inputs)
-    validation_inputs = torch.tensor(validation_inputs)
-
-    train_labels = torch.tensor(train_labels.values)
-    validation_labels = torch.tensor(validation_labels.values)
-
-    train_masks = torch.tensor(train_masks)
-    validation_masks = torch.tensor(validation_masks)
-
-    batch_size = 32
-
-    # Create the DataLoader for our training set.
-    train_data = TensorDataset(train_inputs, train_masks, train_labels)
-    train_sampler = RandomSampler(train_data)
-    train_dataloader = DataLoader(train_data, sampler=train_sampler, batch_size=batch_size)
-
-    validation_data = TensorDataset(validation_inputs, validation_masks, validation_labels)
-    validation_sampler = SequentialSampler(validation_data)
-    validation_dataloader = DataLoader(validation_data, sampler=validation_sampler, batch_size=batch_size)
-
-    model = BertForSequenceClassification.from_pretrained(
-        "bert-base-uncased",
-        num_labels = 2, 
-                      
-        output_attentions = False, 
-        output_hidden_states = False,
-    )
-
-    optimizer = AdamW(model.parameters(),
-                  lr = 2e-5, 
-                  eps = 1e-8 
-                )
-
-    epochs = 4
-
-
-    total_steps = len(train_dataloader) * epochs
-
-    scheduler = get_linear_schedule_with_warmup(optimizer, 
-                                                num_warmup_steps = 0, 
-                                                num_training_steps = total_steps)
-    
-    seed_val = 42
-
-    random.seed(seed_val)
-    np.random.seed(seed_val)
-    torch.manual_seed(seed_val)
-
-    loss_values = []
-
-    for epoch_i in range(0, epochs):
-        print("")
-        print('======== Epoch {:} / {:} ========'.format(epoch_i + 1, epochs))
-        print('Training...')
-
-
-        t0 = time.time()
-
-        total_loss = 0
-
-        model.train()
-
-        for step, batch in enumerate(train_dataloader):
-
-            if step % 40 == 0 and not step == 0:
-
-                elapsed = format_time(time.time() - t0)
-            
-                print('  Batch {:>5,}  of  {:>5,}.    Elapsed: {:}.'.format(step, len(train_dataloader), elapsed))
-
-    
-            b_input_ids = batch[0].to(device)
-            b_input_mask = batch[1].to(device)
-            b_labels = batch[2].to(device)
-
-            b_input_ids = torch.tensor(b_input_ids).to(device).long()
-            b_input_mask = torch.tensor(b_input_mask).to(device).long()
-            b_labels = torch.tensor(b_labels).to(device).long()
-
-            model.zero_grad()        
-
-            outputs = model(b_input_ids, 
-                        token_type_ids=None, 
-                        attention_mask=b_input_mask, 
-                        labels=b_labels)
-            
-            loss = outputs[0]
-
-            total_loss += loss.item()
-
-            loss.backward()
-
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-
-            optimizer.step()
-
-            scheduler.step()
-
-        avg_train_loss = total_loss / len(train_dataloader)            
-        
-        loss_values.append(avg_train_loss)
-
-        print("")
-        print("  Average training loss: {0:.2f}".format(avg_train_loss))
-        print("  Training epcoh took: {:}".format(format_time(time.time() - t0)))
-
-        print("")
-        print("Running Validation...")
-
-        t0 = time.time()
-
-        model.eval()
-
-        eval_loss, eval_accuracy = 0, 0
-        nb_eval_steps, nb_eval_examples = 0, 0
-
-        for batch in validation_dataloader:
-            
-            batch = tuple(t.to(device) for t in batch)
-            
-    
-            b_input_ids, b_input_mask, b_labels = batch
-
-            b_input_ids = torch.tensor(b_input_ids).to(device).long()
-            b_input_mask = torch.tensor(b_input_mask).to(device).long()
-            b_labels = torch.tensor(b_labels).to(device).long()
-            
-            with torch.no_grad():        
-                outputs = model(b_input_ids, 
-                                token_type_ids=None, 
-                                attention_mask=b_input_mask)
-            
-
-            logits = outputs[0]
-
-            logits = logits.detach().cpu().numpy()
-            label_ids = b_labels.to('cpu').numpy()
-         
-            tmp_eval_accuracy = flat_accuracy(logits, label_ids)
-            
-            eval_accuracy += tmp_eval_accuracy
-
-            nb_eval_steps += 1
-
-        print("  Accuracy: {0:.2f}".format(eval_accuracy/nb_eval_steps))
-        print("  Validation took: {:}".format(format_time(time.time() - t0)))
-
-    print("")
-    print("Training complete!")
-
-
-if __name__ == '__main__':
-    main()

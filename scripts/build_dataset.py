@@ -7,8 +7,7 @@ import string
 from gensim.models import Word2Vec
 import shutil
 
-sliced_methods_path = './sliced_methods'
-mutated_methods_path = './mutated_methods'
+
 combined_path = './combined_projects_file'
 out_path = "./datasets"
 abstraction_clean_path = './abstraction_clean'
@@ -59,36 +58,35 @@ class ProcessMethods:
         return word_tokenize(raw_txt)
 
     def combine_project_files(self):
-        for root, project_dir, _ in os.walk(sliced_methods_path):
+        for root, project_dir, _ in os.walk(abstraction_clean_path):
             for project_ in project_dir:
                 _cwd = os.path.join(root, project_)
-                if project_ != 'linux':
-                    for _, release, _ in os.walk(_cwd):
-                        for _ver in release:
-                            clean_code_i = os.path.join(
-                                root, project_, _ver)
+                for _, release, _ in os.walk(_cwd):
+                    for _ver in release:
+                        clean_code_i = os.path.join(
+                            root, project_, _ver)
 
-                            buggy_code_i = os.path.join(
-                                mutated_methods_path, project_, _ver)
+                        buggy_code_i = os.path.join(
+                            abstraction_buggy_path, project_, _ver)
 
-                            new_path_clean = os.path.join(
-                                combined_path, project_, _ver, 'clean')
-                            new_path_buggy = os.path.join(
-                                combined_path, project_, _ver, 'buggy')
+                        new_path_clean = os.path.join(
+                            combined_path, project_, _ver, 'clean')
+                        new_path_buggy = os.path.join(
+                            combined_path, project_, _ver, 'buggy')
 
-                            if not os.path.exists(new_path_buggy):
-                                os.makedirs(new_path_buggy)
-                            if not os.path.exists(new_path_clean):
-                                os.makedirs(new_path_clean)
+                        if not os.path.exists(new_path_buggy):
+                            os.makedirs(new_path_buggy)
+                        if not os.path.exists(new_path_clean):
+                            os.makedirs(new_path_clean)
 
-                            for _file in os.listdir(clean_code_i):
-                                print('coppying clean files', _file)
-                                shutil.copyfile(clean_code_i+'/'+_file,
-                                                new_path_clean+'/'+_file)
-                            for _file in os.listdir(buggy_code_i):
-                                print('coppying buggy files', _file)
-                                shutil.copyfile(buggy_code_i+'/'+_file,
-                                                new_path_buggy+'/'+_file)
+                        for _file in os.listdir(clean_code_i):
+                            print('coppying clean files', _file)
+                            shutil.copyfile(clean_code_i+'/'+_file,
+                                            new_path_clean+'/'+_file)
+                        for _file in os.listdir(buggy_code_i):
+                            print('coppying buggy files', _file)
+                            shutil.copyfile(buggy_code_i+'/'+_file,
+                                            new_path_buggy+'/'+_file)
         return self
 
     def list_all_files(self):
@@ -116,9 +114,10 @@ class ProcessMethods:
                             for _, key in myfile.items():
                                 x.append(key)
                             result = ' '.join(x)
-                            temp.append([str(result), int(label_indicator)])
+                            temp.append(
+                                [_file, str(result), int(label_indicator)])
                             df_i = pd.DataFrame(
-                                temp, columns=('method', 'status'))
+                                temp, columns=('method_name', 'method', 'status'))
                             result = []
                     self.write_file(project_, _ver, df_i)
                     # self.w2v(df_i)
@@ -128,5 +127,5 @@ class ProcessMethods:
 
 if __name__ == '__main__':
     _pm = ProcessMethods()
- #   _pm.combine_project_files()
+    # _pm.combine_project_files()
     _pm.exec()
