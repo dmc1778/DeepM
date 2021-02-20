@@ -110,18 +110,18 @@ class CheckPotential:
                         self.FMA = True
                         self.line_reg.append(line)
 
-                    if len(pattern1) != 0:
-                        self.FMA = True
-                        self.sizeOf_counter += 1
-                        self.line_reg.append(line)
-                    if len(pattern2) != 0:
-                        self.FMA = True
-                        self.sizeOf_counter += 1
-                        self.line_reg.append(line)
-                    if len(pattern3) != 0:
-                        self.FMA = True
-                        self.sizeOf_counter += 1
-                        self.line_reg.append(line)
+                    # if len(pattern1) != 0:
+                    #     self.FMA = True
+                    #     self.sizeOf_counter += 1
+                    #     self.line_reg.append(line)
+                    # if len(pattern2) != 0:
+                    #     self.FMA = True
+                    #     self.sizeOf_counter += 1
+                    #     self.line_reg.append(line)
+                    # if len(pattern3) != 0:
+                    #     self.FMA = True
+                    #     self.sizeOf_counter += 1
+                    #     self.line_reg.append(line)
 
                     # group = re.findall(r'\b((free|kfree)*\s*)\((.*)\)', line)
                     if 'free (' in self._method[line]:

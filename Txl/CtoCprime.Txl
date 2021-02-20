@@ -1,5 +1,5 @@
-include "CL2.Grm"
-include "FMA.Txl"
+include "CL.Grm"
+include "DrMemory.Txl"
 
 function main
     replace [program]
@@ -19,5 +19,5 @@ function preparationTransformations
     replace [program]
         P [program]
     by
-        P [FMARules]
+        P [DrMemory]
 end function

@@ -241,9 +241,8 @@ define function_definition_or_declaration
     	[function_definition]  	
     |	[struct_or_union_definition]  	
     |	[enum_definition]  	
-    |	[declaration] 		
+    |	[declaration]		
 #ifdef GNU
-    |   [preprocessor]
     |	[asm_statement] 
 #endif
 #ifdef LINUX
